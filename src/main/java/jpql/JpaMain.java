@@ -22,28 +22,40 @@ public class JpaMain {
             member.setAge(10);
             em.persist(member);
 
-            TypedQuery<Member> query1 = em.createQuery("select m from Member m", Member.class);
-            //반환타입이 명확하지 않을 때 사용
-            Query query2 = em.createQuery("select m from Member m");
+            em.flush();
+            em.clear();
+            //case 1 : entity 프로젝션
+            List<Member> result = em.createQuery("select m from Member m", Member.class)
+                    .getResultList();
 
-            //결과조회 API case 1 결과값이 List일때 : query.getResultList()
-            List<Member> resultList = query1.getResultList();
+            //case2 : entity 프로젝션 (연관 mapping) 쿼리문이 join해서 날라감 <- 이경우 명시적으로 createQuery에 join을 명시해주는게 좋다.
+            List<Team> result2 = em.createQuery("select t from Member m join Team t", Team.class)
+                    .getResultList();
 
-            for(Member member1 : resultList){
-                System.out.println("member1 = "+ member1);
-            }
-            //결과조회 API case 2 결과값이 List일때 : query.getResultList()
-            Object singleResult = query2.getSingleResult();
+            //case3 : embedded 프로젝션 Order에서 embedded 타입인 Address를 가지고올때
+            List<Address> result3 = em.createQuery("select o.address from Order o", Address.class)
+                            .getResultList();
 
-            System.out.println(singleResult);
+            //case4 : 스칼라 타입 return Object type casting이 필요함
+            List<Address> result4 = em.createQuery("select distinct m.username, m.age from Member m", Address.class)
+                    .getResultList();
+
+            //type casting
+            Object o = result4.get(0);
+            Object[] resultObject = (Object[]) o;
+
+            // none type casting
+            List<Object[]> result5 = em.createQuery("select distinct m.username, m.age from Member m")
+                    .getResultList();
+
+            Object[] resultObject2 = result5.get(0);
+
+            // new 명령어로 조회 DTO로 바로 조회하는 것
+            List<MemberDTO> result6 = em.createQuery("select new jpql.MemberDTO distinct(m.username, m.age) from Member m", MemberDTO.class)
+                            .getResultList();
 
 
-            //getResultList <- 결과가 없을 때 Exception을 조심 하지 않아도 됨 빈 리스트 반환
-
-            //getSingleResult <- 결과가 없을때 Exception을 반환
-
-            //파라미터 바인딩
-            em.createQuery("select m from Member m where m.username =: username").setParameter("username", "usernameParam");
+            tx.commit();
         }catch (Exception e){
             tx.rollback();
         }finally {
